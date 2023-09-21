@@ -5,6 +5,7 @@ import com.yubico.webauthn.AssertionRequest;
 import com.yubico.webauthn.AssertionResult;
 import com.yubico.webauthn.FinishAssertionOptions;
 import com.yubico.webauthn.FinishRegistrationOptions;
+import com.yubico.webauthn.RegisteredCredential;
 import com.yubico.webauthn.RegistrationResult;
 import com.yubico.webauthn.RelyingParty;
 import com.yubico.webauthn.StartAssertionOptions;
@@ -33,6 +34,8 @@ import java.util.Random;
 public class WebauthnService {
     @Autowired
     private RelyingParty relyingParty;
+    @Autowired
+    private CredentialManager credentialManager;
 
     private final Map<String, PublicKeyCredentialCreationOptions> cacheMap = new HashMap<>();
     private final Map<String, AssertionRequest> cacheAuthMap = new HashMap<>();
@@ -61,7 +64,6 @@ public class WebauthnService {
 
     public void finishRegister(String name, PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> publicKeyCredential) throws RegistrationFailedException {
         PublicKeyCredentialCreationOptions credentialCreationOptions = cacheMap.get(name);
-        credentialCreationOptions.getUser().getId();
 
         FinishRegistrationOptions options = FinishRegistrationOptions.builder()
                 .request(credentialCreationOptions)
@@ -69,6 +71,15 @@ public class WebauthnService {
                 .build();
 
         RegistrationResult registration = relyingParty.finishRegistration(options);
+
+        RegisteredCredential registeredCredential = RegisteredCredential.builder()
+                .credentialId(registration.getKeyId().getId())
+                .userHandle(credentialCreationOptions.getUser().getId())
+                .publicKeyCose(registration.getPublicKeyCose())
+                .signatureCount(registration.getSignatureCount())
+                .build();
+
+        credentialManager.insertRegisteredCredential(registeredCredential);
     }
 
     public void startAuthentication(String name) {

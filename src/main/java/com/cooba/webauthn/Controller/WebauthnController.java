@@ -34,10 +34,14 @@ public class WebauthnController {
     }
 
     @PostMapping("/register/finish")
-    public void finishRegister(@RequestBody RegisterRequest request) throws IOException, RegistrationFailedException {
+    public ResponseEntity<String> finishRegister(@RequestBody RegisterRequest request) throws IOException {
         PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> pkc = PublicKeyCredential.parseRegistrationResponseJson(request.getCredential());
-
-        webauthnService.finishRegister(request.getName(), pkc);
+        try {
+            webauthnService.finishRegister(request.getName(), pkc);
+            return ResponseEntity.ok().build();
+        }catch (RegistrationFailedException registrationFailedException){
+            return ResponseEntity.internalServerError().body(registrationFailedException.getMessage());
+        }
     }
 
     @PostMapping("/authenticate/finish")
