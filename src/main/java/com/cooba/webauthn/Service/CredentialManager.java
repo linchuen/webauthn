@@ -16,40 +16,62 @@ import java.util.Set;
 @Repository
 public class CredentialManager implements CredentialService {
     private final Map<ByteArray, RegisteredCredential> userHandleCredentialMap = new HashMap<>();
-    private final Map<ByteArray, String> userHandleNameMap = new HashMap<>();
+    private final Map<String, ByteArray> userNameHandleMap = new HashMap<>();
 
     @Override
     public Set<PublicKeyCredentialDescriptor> getCredentialIdsForUsername(String username) {
-        return new HashSet<>();
+        Set<PublicKeyCredentialDescriptor> result = new HashSet<>();
+        Optional<ByteArray> userHandle = getUserHandleForUsername(username);
+        if (userHandle.isPresent()) {
+            RegisteredCredential credential = userHandleCredentialMap.get(userHandle.get());
+            PublicKeyCredentialDescriptor descriptor = PublicKeyCredentialDescriptor.builder()
+                    .id(credential.getCredentialId())
+                    .build();
+            result.add(descriptor);
+        }
+        return result;
     }
 
     @Override
     public Optional<ByteArray> getUserHandleForUsername(String username) {
-        return Optional.empty();
+        return Optional.ofNullable(userNameHandleMap.get(username));
     }
 
     @Override
     public Optional<String> getUsernameForUserHandle(ByteArray userHandle) {
-        return Optional.ofNullable(userHandleNameMap.get(userHandle));
+        for (Map.Entry<String, ByteArray> entry : userNameHandleMap.entrySet()) {
+            ByteArray userId = entry.getValue();
+            if (userId.equals(userHandle)) {
+                return Optional.of(entry.getKey());
+            }
+        }
+        return Optional.empty();
     }
 
     @Override
     public Optional<RegisteredCredential> lookup(ByteArray credentialId, ByteArray userHandle) {
         RegisteredCredential registeredCredential = userHandleCredentialMap.get(userHandle);
-        return Optional.ofNullable(registeredCredential);
+        return credentialId.equals(registeredCredential.getCredentialId())
+                ? Optional.of(registeredCredential)
+                : Optional.empty();
     }
 
     @Override
     public Set<RegisteredCredential> lookupAll(ByteArray credentialId) {
-        return new HashSet<>();
+        Set<RegisteredCredential> result = new HashSet<>();
+        for (Map.Entry<ByteArray, RegisteredCredential> entry : userHandleCredentialMap.entrySet()) {
+            RegisteredCredential registeredCredential = entry.getValue();
+
+            if (credentialId.equals(registeredCredential.getCredentialId())) {
+                result.add(registeredCredential);
+            }
+        }
+        return result;
     }
 
     @Override
-    public void insertRegisteredCredential(RegisteredCredential registeredCredential) {
-        userHandleCredentialMap.put(registeredCredential.getUserHandle(), registeredCredential);
-    }
-
-    public void bindUserHandleWithName(UserIdentity userIdentity) {
-        userHandleNameMap.put(userIdentity.getId(), userIdentity.getName());
+    public void insertRegisteredCredential(UserIdentity userIdentity, RegisteredCredential registeredCredential) {
+        userHandleCredentialMap.put(userIdentity.getId(), registeredCredential);
+        userNameHandleMap.put(userIdentity.getName(), userIdentity.getId());
     }
 }

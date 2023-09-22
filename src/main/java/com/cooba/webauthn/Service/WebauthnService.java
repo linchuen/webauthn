@@ -62,8 +62,9 @@ public class WebauthnService {
         return credentialCreationOptions;
     }
 
-    public void finishRegister(String name, PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> publicKeyCredential) throws RegistrationFailedException {
+    public RegisteredCredential finishRegister(String name, PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> publicKeyCredential) throws RegistrationFailedException {
         PublicKeyCredentialCreationOptions credentialCreationOptions = cacheMap.get(name);
+        UserIdentity userIdentity = credentialCreationOptions.getUser();
 
         FinishRegistrationOptions options = FinishRegistrationOptions.builder()
                 .request(credentialCreationOptions)
@@ -74,20 +75,22 @@ public class WebauthnService {
 
         RegisteredCredential registeredCredential = RegisteredCredential.builder()
                 .credentialId(registration.getKeyId().getId())
-                .userHandle(credentialCreationOptions.getUser().getId())
+                .userHandle(userIdentity.getId())
                 .publicKeyCose(registration.getPublicKeyCose())
                 .signatureCount(registration.getSignatureCount())
                 .build();
 
-        credentialManager.insertRegisteredCredential(registeredCredential);
+        credentialManager.insertRegisteredCredential(userIdentity, registeredCredential);
+        return registeredCredential;
     }
 
-    public void startAuthentication(String name) {
+    public AssertionRequest startAuthentication(String name) {
         AssertionRequest assertionRequest = relyingParty.startAssertion(StartAssertionOptions.builder().username(name).build());
         cacheAuthMap.put(name, assertionRequest);
+        return assertionRequest;
     }
 
-    public void finishAuthentication(String name, PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> publicKeyCredential) throws AssertionFailedException {
+    public AssertionResult finishAuthentication(String name, PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs> publicKeyCredential) throws AssertionFailedException {
         AssertionRequest assertionRequest = cacheAuthMap.get(name);
 
         FinishAssertionOptions options = FinishAssertionOptions.builder()
@@ -96,6 +99,7 @@ public class WebauthnService {
                 .build();
 
         AssertionResult result = relyingParty.finishAssertion(options);
+        return result;
     }
 
     private ByteArray generateRandom(int length) {
