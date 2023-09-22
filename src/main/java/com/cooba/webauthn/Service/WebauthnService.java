@@ -55,7 +55,7 @@ public class WebauthnService {
         StartRegistrationOptions registrationOptions = StartRegistrationOptions.builder()
                 .user(userIdentity)
                 .authenticatorSelection(authenticatorSelection)
-                .timeout(6000L)
+                .timeout(60000L)
                 .build();
         PublicKeyCredentialCreationOptions credentialCreationOptions = relyingParty.startRegistration(registrationOptions);
         cacheMap.put(name, credentialCreationOptions);

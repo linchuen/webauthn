@@ -57,31 +57,83 @@ input[type="text"] {
 </head>
 <body>
 <script>
-async function register() {
-    const response = await fetch("/register/Aiden", {
+ function register() {
+    const res = fetch("/register/Aiden", {
         method: 'POST',
-    });
-    const json = await response.json();
-    const credential = await create(json);
-    finish(credential);
+    })
+    .then(res=>res.json())
+    .then(pkOpt=>create(pkOpt))
+    .then(credential=>finish(credential))
 }
+async function create(pkOpt) {
+    console.log(pkOpt)
 
-async function create(pk) {
-    console.log(pk)
-    const credential = await navigator.credentials.create(pk);
+    let challenge = pkOpt.publicKey.challenge
+    console.log("challenge")
+    console.log(challenge)
+    challenge = Uint8Array.from(challenge, c => c.charCodeAt(0))
+    console.log(challenge)
+    pkOpt.publicKey.challenge = challenge
+
+    let userId = pkOpt.publicKey.user.id
+    userId = Uint8Array.from(userId, c => c.charCodeAt(0))
+    pkOpt.publicKey.user.id = userId
+
+    const credential = await navigator.credentials.create(pkOpt);
+    console.log(credential)
     return credential;
 }
 
 function finish(credential) {
+    console.log("In finish");
     console.log(credential);
-    let credentialJson = JSON.stringify(credential)
-    console.log(credentialJson);
-    let json = JSON.stringify({ name: "Aiden", credential: credentialJson })
-    console.log(json);
+
+    const serializeable = {
+        authenticatorAttachment: credential.authenticatorAttachment,
+        id: credential.id,
+        rawId: bufferToBase64url(credential.rawId),
+        response: {
+            attestationObject: bufferToBase64url(credential.response.attestationObject),
+            clientDataJSON: bufferToBase64url(credential.response.clientDataJSON)
+        },
+        clientExtensionResults: credential.getClientExtensionResults(),
+        type: credential.type
+    };
+
+    const serialized = JSON.stringify(serializeable);
+
+    console.log(serialized);
+
     return fetch("/register/finish", {
-        body: json,
-        method: 'POST'
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+        body: JSON.stringify({name:"Aiden",credential: serialized})
     })
+}
+
+function bufferToBase64url (buffer) {
+
+    // modified from https://github.com/github/webauthn-json/blob/main/src/webauthn-json/base64url.ts
+
+    const byteView = new Uint8Array(buffer);
+    let str = "";
+    for (const charCode of byteView) {
+        str += String.fromCharCode(charCode);
+    }
+
+    // Binary string to base64
+    const base64String = btoa(str);
+
+    // Base64 to base64url
+    // We assume that the base64url string is well-formed.
+    const base64urlString = base64String.replace(/\+/g, "-").replace(
+        /\//g,
+        "_",
+    ).replace(/=/g, "");
+    return base64urlString;
 }
 
 async function skip() {
@@ -111,11 +163,9 @@ async function skip() {
         attestation: "direct"
     };
 
-    const credential = await navigator.credentials.create({
+    const res = await navigator.credentials.create({
         publicKey: publicKeyCredentialCreationOptions
-    });
-
-    finish(credential)
+    }).then(credential=>finish(credential));
 }
 </script>
 <div class="base">
@@ -137,7 +187,7 @@ async function skip() {
         <label for="credentialNickname">Credential nickname:</label>
         <div><input type="text" id="credentialNickname"/></div>
         <div>
-          <button type="button" id="registerButton" onclick="skip()">
+          <button type="button" id="registerButton" onclick="register()">
             Create account with non-discoverable credential
           </button>
         </div>

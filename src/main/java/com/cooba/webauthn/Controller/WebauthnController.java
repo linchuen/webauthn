@@ -38,9 +38,10 @@ public class WebauthnController {
         PublicKeyCredential<AuthenticatorAttestationResponse, ClientRegistrationExtensionOutputs> pkc = PublicKeyCredential.parseRegistrationResponseJson(request.getCredential());
         try {
             webauthnService.finishRegister(request.getName(), pkc);
-            return ResponseEntity.ok().build();
-        }catch (RegistrationFailedException registrationFailedException){
-            return ResponseEntity.internalServerError().body(registrationFailedException.getMessage());
+            return ResponseEntity.ok("成功註冊");
+        }catch (Exception e){
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body(e.getMessage());
         }
     }
 
